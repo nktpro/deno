@@ -542,6 +542,6 @@ opt-level = 3
 [patch.crates-io]
 opentelemetry = { git = "https://github.com/nktpro/opentelemetry-rust", branch = "feature/fix-observable" }
 opentelemetry-http = { git = "https://github.com/nktpro/opentelemetry-rust", branch = "feature/fix-observable" }
-opentelemetry-otlp = { git = "https://github.com/nktpro/opentelemetry-rust", branch = "feature/fix-observable", features = ["logs", "http-proto", "http-json", "populate-logs-event-name"] }
-opentelemetry-semantic-conventions = { git = "https://github.com/nktpro/opentelemetry-rust", branch = "feature/fix-observable", features = ["semconv_experimental"] }
-opentelemetry_sdk = { git = "https://github.com/nktpro/opentelemetry-rust", branch = "feature/fix-observable", features = ["rt-tokio", "trace"] }
+opentelemetry-otlp = { git = "https://github.com/nktpro/opentelemetry-rust", branch = "feature/fix-observable" }
+opentelemetry-semantic-conventions = { git = "https://github.com/nktpro/opentelemetry-rust", branch = "feature/fix-observable" }
+opentelemetry_sdk = { git = "https://github.com/nktpro/opentelemetry-rust", branch = "feature/fix-observable" }
