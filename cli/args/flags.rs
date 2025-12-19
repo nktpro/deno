@@ -168,6 +168,7 @@ pub struct CompileFlags {
   pub include: Vec<String>,
   pub exclude: Vec<String>,
   pub eszip: bool,
+  pub bundle_file: bool,
 }
 
 impl CompileFlags {
@@ -2719,6 +2720,13 @@ On the first invocation of `deno compile`, Deno will download the relevant binar
           .long("icon")
           .help("Set the icon of the executable on Windows (.ico)")
           .value_parser(value_parser!(String))
+          .help_heading(COMPILE_HEADING),
+      )
+      .arg(
+        Arg::new("bundle-file")
+          .long("bundle-file")
+          .help("Generate standalone bundle file instead of executable")
+          .action(ArgAction::SetTrue)
           .help_heading(COMPILE_HEADING),
       )
       .arg(executable_ext_arg())
@@ -5790,6 +5798,7 @@ fn compile_parse(
   let icon = matches.remove_one::<String>("icon");
   let no_terminal = matches.get_flag("no-terminal");
   let eszip = matches.get_flag("eszip-internal-do-not-use");
+  let bundle_file = matches.get_flag("bundle-file");
   let include = matches
     .remove_many::<String>("include")
     .map(|f| f.collect::<Vec<_>>())
@@ -5812,6 +5821,7 @@ fn compile_parse(
     include,
     exclude,
     eszip,
+    bundle_file,
   });
 
   Ok(())
@@ -12047,6 +12057,7 @@ mod tests {
           include: Default::default(),
           exclude: Default::default(),
           eszip: false,
+          bundle_file: false,
         }),
         type_check_mode: TypeCheckMode::Local,
         code_cache_enabled: true,
@@ -12072,7 +12083,8 @@ mod tests {
           icon: Some(String::from("favicon.ico")),
           include: vec!["include.txt".to_string()],
           exclude: vec!["exclude.txt".to_string()],
-          eszip: false
+          eszip: false,
+          bundle_file: false,
         }),
         import_map_path: Some("import_map.json".to_string()),
         no_remote: true,
@@ -14088,6 +14100,7 @@ Usage: deno repl [OPTIONS] [-- [ARGS]...]\n"
           include: Default::default(),
           exclude: Default::default(),
           eszip: false,
+          bundle_file: false,
         }),
         type_check_mode: TypeCheckMode::Local,
         preload: svec!["p1.js", "./p2.js"],

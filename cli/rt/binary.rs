@@ -116,6 +116,74 @@ pub fn extract_standalone(
   })
 }
 
+/// Load standalone data from an external bundle file instead of an embedded section.
+/// This allows running bundle files created with `deno compile --bundle-file`.
+pub fn load_standalone_from_bundle_file(
+  bundle_path: &Path,
+  cli_args: Cow<[OsString]>,
+) -> Result<StandaloneData, AnyError> {
+  // Read the bundle file
+  let bundle_data = std::fs::read(bundle_path)
+    .with_context(|| format!("Failed to read bundle file: {}", bundle_path.display()))?;
+
+  // Leak the bundle data so it has a 'static lifetime
+  let data: &'static [u8] = Box::leak(bundle_data.into_boxed_slice());
+
+  let root_path = {
+    let bundle_name = bundle_path
+      .file_stem()
+      .and_then(|s| s.to_str())
+      .unwrap_or("bundle");
+    std::env::temp_dir().join(format!("deno-bundle-{}", bundle_name))
+  };
+  let root_url = deno_path_util::url_from_directory_path(&root_path)?;
+
+  let DeserializedDataSection {
+    mut metadata,
+    npm_snapshot,
+    modules_store: remote_modules,
+    vfs_root_entries,
+    vfs_files_data,
+  } = deserialize_binary_data_section(&root_url, data)?;
+
+  let cli_args = cli_args.into_owned();
+  metadata.argv.reserve(cli_args.len() - 1);
+  for arg in cli_args.into_iter().skip(1) {
+    metadata.argv.push(arg.into_string().unwrap());
+  }
+
+  let vfs = {
+    let fs_root = VfsRoot {
+      dir: VirtualDirectory {
+        name: root_path
+          .file_name()
+          .unwrap()
+          .to_string_lossy()
+          .into_owned(),
+        entries: vfs_root_entries,
+      },
+      root_path: root_path.clone(),
+      start_file_offset: 0,
+    };
+    Arc::new(FileBackedVfs::new(
+      Cow::Borrowed(vfs_files_data),
+      fs_root,
+      metadata.vfs_case_sensitivity,
+    ))
+  };
+
+  Ok(StandaloneData {
+    metadata,
+    modules: Arc::new(StandaloneModules {
+      modules: remote_modules,
+      vfs: vfs.clone(),
+    }),
+    npm_snapshot,
+    root_path,
+    vfs,
+  })
+}
+
 fn find_section() -> Result<&'static [u8], AnyError> {
   #[cfg(windows)]
   if std::env::var_os("DENO_INTERNAL_RT_USE_FILE_FALLBACK").is_some() {

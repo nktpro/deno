@@ -33,6 +33,11 @@ pub async fn compile(
   flags: Arc<Flags>,
   compile_flags: CompileFlags,
 ) -> Result<(), AnyError> {
+  // Check if we should generate a bundle file instead of an executable
+  if compile_flags.bundle_file {
+    return super::bundle_compile::compile_to_bundle(flags, compile_flags).await;
+  }
+
   let factory = CliFactory::from_flags(flags);
   let cli_options = factory.cli_options()?;
   let module_graph_creator = factory.module_graph_creator().await?;
@@ -339,7 +344,7 @@ fn validate_output_path(output_path: &Path) -> Result<(), AnyError> {
   Ok(())
 }
 
-fn get_module_roots_and_include_paths(
+pub(super) fn get_module_roots_and_include_paths(
   entrypoint: &ModuleSpecifier,
   compile_flags: &CompileFlags,
   cli_options: &Arc<CliOptions>,
@@ -450,7 +455,7 @@ fn get_module_roots_and_include_paths(
   Ok((module_roots, include_paths))
 }
 
-async fn resolve_compile_executable_output_path(
+pub(super) async fn resolve_compile_executable_output_path(
   bin_name_resolver: &BinNameResolver<'_>,
   compile_flags: &CompileFlags,
   current_dir: &Path,

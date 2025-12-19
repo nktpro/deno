@@ -1207,3 +1207,57 @@ fn standalone_jsr_dynamic_import() {
   output.assert_exit_code(0);
   output.assert_matches_text("Hello world\n");
 }
+
+#[test]
+fn compile_bundle_file() {
+  let context = TestContextBuilder::new().build();
+  let dir = context.temp_dir();
+  let bundle_file = dir.path().join("welcome.dnb");
+
+  // Compile to bundle file instead of executable
+  let output = context
+    .new_command()
+    .args_vec([
+      "compile",
+      "--bundle-file",
+      "--output",
+      &bundle_file.to_string_lossy(),
+      "../../tests/testdata/welcome.ts",
+    ])
+    .run();
+  output.assert_exit_code(0);
+  output.skip_output_check();
+
+  // Verify the bundle file was created
+  assert!(bundle_file.exists(), "Bundle file should exist");
+
+  // Verify the bundle file has the correct magic bytes
+  let bundle_contents = std::fs::read(&bundle_file).unwrap();
+  assert!(!bundle_contents.is_empty(), "Bundle file should not be empty");
+
+  // Check for the magic bytes "d3n0l4nd" at the start
+  let magic_bytes = b"d3n0l4nd";
+  assert!(
+    bundle_contents.len() >= magic_bytes.len(),
+    "Bundle file should be at least as long as magic bytes"
+  );
+  assert_eq!(
+    &bundle_contents[..magic_bytes.len()],
+    magic_bytes,
+    "Bundle file should start with magic bytes 'd3n0l4nd'"
+  );
+
+  // Verify the bundle file is not executable (it's just data)
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::PermissionsExt;
+    let metadata = std::fs::metadata(&bundle_file).unwrap();
+    let permissions = metadata.permissions();
+    // Should not have execute bit set
+    assert_eq!(
+      permissions.mode() & 0o111,
+      0,
+      "Bundle file should not be executable"
+    );
+  }
+}

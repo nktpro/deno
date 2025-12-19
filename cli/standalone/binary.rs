@@ -268,6 +268,47 @@ impl<'a> DenoCompileBinaryWriter<'a> {
     self.write_standalone_binary(options, original_binary).await
   }
 
+  /// Generates bundle bytes without embedding into a binary.
+  /// This is used by the --bundle-file flag to create standalone .dnb files.
+  ///
+  /// This method reuses write_standalone_binary by writing to a temporary file,
+  /// then extracting just the data section. This ensures consistency without code duplication.
+  pub async fn generate_bundle_bytes(
+    &self,
+    graph: &ModuleGraph,
+    entrypoint: &ModuleSpecifier,
+    include_paths: &[ModuleSpecifier],
+    exclude_paths: Vec<PathBuf>,
+    compile_flags: &CompileFlags,
+  ) -> Result<Vec<u8>, AnyError> {
+    // Create a temporary file for the full binary
+    let temp_dir = tempfile::TempDir::new()?;
+    let temp_bin_path = temp_dir.path().join("temp.bin");
+    let temp_file = std::fs::File::create(&temp_bin_path)?;
+
+    // Get a minimal base binary (we'll extract data section from it)
+    let original_bin = self.get_base_binary(compile_flags).await?;
+
+    // Use write_standalone_binary to create the full bundle
+    let options = WriteBinOptions {
+      writer: temp_file,
+      display_output_filename: "bundle",
+      graph,
+      entrypoint,
+      include_paths,
+      exclude_paths,
+      compile_flags,
+    };
+    self.write_standalone_binary(options, original_bin).await?;
+
+    // Extract the data section from the temporary binary
+    let _binary_bytes = std::fs::read(&temp_bin_path)?;
+    let data_section = libsui::find_section("d3n0l4nd")?
+      .ok_or_else(|| deno_core::anyhow::anyhow!("Failed to find data section in generated binary"))?;
+
+    Ok(data_section.to_vec())
+  }
+
   async fn get_base_binary(
     &self,
     compile_flags: &CompileFlags,

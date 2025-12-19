@@ -74,7 +74,24 @@ fn main() {
     .unwrap();
 
   let args: Vec<_> = env::args_os().collect();
-  let standalone = extract_standalone(Cow::Owned(args));
+
+  // Check if first argument is a .dnb file (Deno bundle)
+  let standalone = if args.len() > 1 {
+    let first_arg = std::path::PathBuf::from(&args[1]);
+    if first_arg.extension().and_then(|s| s.to_str()) == Some("dnb")
+      && first_arg.exists()
+    {
+      // Load from external .dnb bundle file
+      binary::load_standalone_from_bundle_file(&first_arg, Cow::Owned(args))
+    } else {
+      // Load from embedded section (normal denort behavior)
+      extract_standalone(Cow::Owned(args))
+    }
+  } else {
+    // Load from embedded section (normal denort behavior)
+    extract_standalone(Cow::Owned(args))
+  };
+
   let future = async move {
     match standalone {
       Ok(data) => {

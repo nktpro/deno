@@ -2,6 +2,7 @@
 
 pub mod bench;
 pub mod bundle;
+pub mod bundle_compile;
 pub mod check;
 pub mod clean;
 pub mod compile;
